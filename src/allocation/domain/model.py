@@ -28,6 +28,18 @@ class OrderLine:
     sku: Sku
     qty: Quantity
 
+    def __eq__(self, other):
+        if not isinstance(other, OrderLine):
+            return False
+        return (
+            other.orderid == self.orderid
+            and other.sku == self.sku
+            and other.qty == self.qty
+        )
+
+    def __hash__(self):
+        return hash((self.orderid, self.sku, self.qty))
+
 
 class Batch:
     def __init__(self, ref: Reference, sku: Sku, qty: Quantity, eta: Optional[date]):
