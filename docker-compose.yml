@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+
+  fastapi:
+    container_name: fastapi
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+    environment:
+      - DB_HOST=postgres
+      - DB_PASSWORD=abc123
+    volumes:
+      - ./:/code
+    ports:
+      - "8000:8000"
+
+  postgres:
+    container_name: postgres
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=allocation
+      - POSTGRES_PASSWORD=abc123
+    ports:
+      - "5432:5432"
