@@ -1,15 +1,16 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from src.allocation.adapters.orm import metadata
 from src.allocation.domain import model
 from src.allocation.adapters import orm, repository
-from src.allocation.entrypoints.schemas import CreateAllocation
+from src.allocation.entrypoints.schemas import CreateAllocation, CreateBatch
 from src.allocation.service_layer import services
+from decouple import config
 
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///././././sqlite.db"
-# SQLALCHEMY_DATABASE_URL = "postgresql://user:password@postgresserver/db"
+SQLALCHEMY_DATABASE_URL = config("DATABASE_URI")
 
 orm.start_mappers()
 
@@ -43,15 +44,29 @@ def allocate_endpoint(
 ):
     repo = repository.SqlAlchemyRepository(session)
 
-    line = model.OrderLine(
-        orderid=new_allocate.orderid,
-        sku=new_allocate.sku,
-        qty=new_allocate.qty,
-    )
-
     try:
-        batchref = services.allocate(line, repo, session)
+        batchref = services.allocate(
+            new_allocate.orderid, new_allocate.sku, new_allocate.qty, repo, session
+        )
     except (model.OutOfStock, services.InvalidSku) as e:
-        return HTTPException(detail=f"error: {e}", status_code=400)
+        raise HTTPException(detail=f"error: {e}", status_code=400)
 
-    return {"batchref": batchref}, 201
+    return JSONResponse(status_code=201, content={"batchref": batchref})
+
+
+@app.post("/add_batch")
+def add_batch(
+    new_batch: CreateBatch,
+    session: Session = Depends(get_db),
+):
+    repo = repository.SqlAlchemyRepository(session)
+
+    services.add_batch(
+        new_batch.ref,
+        new_batch.sku,
+        new_batch.qty,
+        new_batch.eta,
+        repo,
+        session,
+    )
+    return JSONResponse(status_code=201, content="OK")

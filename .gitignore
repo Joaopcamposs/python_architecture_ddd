@@ -3,3 +3,5 @@ venv_ddd
 .ruff_cache
 .idea
 .env
+sqlite.db
+tests/sqlite.db
