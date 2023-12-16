@@ -13,32 +13,27 @@ class OutOfStock(Exception):
     pass
 
 
-def allocate(line: OrderLine, batches: list[Batch]) -> str:
-    try:
-        batch = next(b for b in sorted(batches) if b.can_allocate(line))
-        batch.allocate(line)
-        return batch.reference
-    except StopIteration:
-        raise OutOfStock(f"Out of stock for sku {line.sku}")
+class Product:
+    def __init__(self, sku: str, batches: list[Batch], version_number: int = 0):
+        self.sku = sku
+        self.batches = batches
+        self.version_number = version_number
+
+    def allocate(self, line: OrderLine) -> str:
+        try:
+            batch = next(b for b in sorted(self.batches) if b.can_allocate(line))
+            batch.allocate(line)
+            self.version_number += 1
+            return batch.reference
+        except StopIteration:
+            raise OutOfStock(f"Out of stock for sku {line.sku}")
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class OrderLine:
     orderid: Reference
     sku: Sku
     qty: Quantity
-
-    def __eq__(self, other):
-        if not isinstance(other, OrderLine):
-            return False
-        return (
-            other.orderid == self.orderid
-            and other.sku == self.sku
-            and other.qty == self.qty
-        )
-
-    def __hash__(self):
-        return hash((self.orderid, self.sku, self.qty))
 
 
 class Batch:

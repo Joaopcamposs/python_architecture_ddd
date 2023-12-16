@@ -1,21 +1,13 @@
 import abc
-from typing import Type
-
 from decouple import config
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from src.allocation.adapters import repository
 
-DEFAULT_SESSION_FACTORY = sessionmaker(
-    bind=create_engine(
-        config("DATABASE_URI"),
-    )
-)
-
 
 class AbstractUnitOfWork(abc.ABC):
-    batches: repository.AbstractRepository
+    products: repository.AbstractProductRepository
 
     def __enter__(self) -> "AbstractUnitOfWork":
         return self
@@ -32,13 +24,21 @@ class AbstractUnitOfWork(abc.ABC):
         raise NotImplementedError
 
 
+DEFAULT_SESSION_FACTORY = sessionmaker(
+    bind=create_engine(
+        config("DATABASE_URI"),
+        isolation_level="SERIALIZABLE",  # usar 'REPEATABLE READ' quando postgres real
+    )
+)
+
+
 class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
     def __init__(self, session_factory=DEFAULT_SESSION_FACTORY):
         self.session_factory = session_factory
 
     def __enter__(self):
         self.session: Session = self.session_factory()
-        self.batches = repository.SqlAlchemyRepository(self.session)
+        self.products = repository.SqlAlchemyProductRepository(self.session)
         return super().__enter__()
 
     def __exit__(self, *args):
