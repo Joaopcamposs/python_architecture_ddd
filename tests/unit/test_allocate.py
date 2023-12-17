@@ -3,7 +3,7 @@ from datetime import date, timedelta
 import pytest
 
 from src.allocation.domain.model import Batch, OrderLine, OutOfStock
-from src.allocation.service_layer.services import allocate
+from src.allocation.service_layer.handlers import allocate
 
 today = date.today()
 tomorrow = today + timedelta(days=1)
