@@ -3,7 +3,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional, Set, NewType
 
-from src.allocation.domain import events
+from src.allocation.domain import events, commands
+
 
 Quantity = NewType("Quantity", int)
 Sku = NewType("Sku", str)
@@ -16,10 +17,12 @@ class OutOfStock(Exception):
 
 class Product:
     def __init__(self, sku: str, batches: list[Batch], version_number: int = 0):
+        from src.allocation.service_layer.messagebus import Message
+
         self.sku = sku
         self.batches = batches
         self.version_number = version_number
-        self.events: list[events.Event] = []
+        self.events: list[Message] = []
 
     def allocate(self, line: OrderLine) -> str:
         try:
@@ -36,9 +39,7 @@ class Product:
         batch._purchased_quantity = qty
         while batch.available_quantity < 0:
             line = batch.deallocate_one()
-            self.events.append(
-                events.AllocationRequired(line.orderid, line.sku, line.qty)
-            )
+            self.events.append(commands.Allocate(line.orderid, line.sku, line.qty))
 
 
 @dataclass(unsafe_hash=True)

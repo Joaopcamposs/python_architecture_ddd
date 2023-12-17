@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from src.allocation.adapters.orm import metadata
-from src.allocation.domain import events
+from src.allocation.domain import commands
 from src.allocation.adapters import orm
 from src.allocation.entrypoints.schemas import CreateAllocation, CreateBatch
 from src.allocation.service_layer import unit_of_work, messagebus
@@ -36,7 +36,7 @@ app = FastAPI()
 def add_batch(
     new_batch: CreateBatch,
 ):
-    event = events.BatchCreated(
+    event = commands.CreateBatch(
         new_batch.ref,
         new_batch.sku,
         new_batch.qty,
@@ -51,7 +51,7 @@ def allocate_endpoint(
     new_allocate: CreateAllocation,
 ):
     try:
-        event = events.AllocationRequired(
+        event = commands.Allocate(
             new_allocate.orderid,
             new_allocate.sku,
             new_allocate.qty,
