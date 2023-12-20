@@ -1,18 +1,21 @@
 FROM python:3.11-slim-bullseye
 
-COPY requirements.txt /tmp
+RUN apt-get update && apt-get install --yes --force-yes python3-lxml python3-dev gcc
+
+COPY requirements.txt /tmp/
 
 RUN python -m pip install --upgrade pip
 
 RUN pip install -r /tmp/requirements.txt
 
-RUN mkdir -p /code
+RUN mkdir -p /src
 
-COPY *.py /code/
+COPY src/ /app/src/
+RUN pip install -e /app/src
+COPY tests/ /tests/
 
-WORKDIR /code
+WORKDIR /src
 
-EXPOSE 8000
+EXPOSE 8001
 
-#CMD flask run --host=0.0.0.0 --port=80
 CMD uvicorn --host 0.0.0.0 --port 8000 src.allocation.entrypoints.fast_api:app --workers 1 --log-level debug --forwarded-allow-ips="*" --proxy-headers

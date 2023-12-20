@@ -10,18 +10,20 @@ services:
     depends_on:
       - postgres
     environment:
-      - DB_HOST=postgres
-      - DB_PASSWORD=abc123
+      - DATABASE_URI=postgresql://user:password@postgres:5432/allocation
+      - API_HOST=api
+      - PYTHONPATH=/app
     volumes:
-      - ./:/code
+      - ./src:/app/src
+      - ./tests:/tests
     ports:
-      - "8000:8000"
+      - "8001:8000"
 
   postgres:
     container_name: postgres
     image: postgres:16
     environment:
-      - POSTGRES_USER=allocation
-      - POSTGRES_PASSWORD=abc123
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
     ports:
       - "5432:5432"

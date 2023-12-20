@@ -62,6 +62,14 @@ def postgres_db():
     return engine
 
 
+@pytest.fixture(scope="session")
+def sqlite_db():
+    engine = create_engine("sqlite:///././sqlite.db")
+    clear_mappers()
+    metadata.create_all(engine)
+    return engine
+
+
 @pytest.fixture
 def postgres_session_factory(postgres_db):
     clear_mappers()

@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from src.allocation.adapters.orm import metadata
+from src.allocation.config import create_default_database
 from src.allocation.domain import commands
 from src.allocation.adapters import orm
 from src.allocation.entrypoints.schemas import CreateAllocation, CreateBatch
@@ -13,12 +14,13 @@ from src.allocation.service_layer.handlers import InvalidSku
 
 # dependencias de banco de dados
 SQLALCHEMY_DATABASE_URL = config("DATABASE_URI")
+create_default_database(SQLALCHEMY_DATABASE_URL)
 orm.start_mappers()
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 metadata.create_all(bind=engine)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+app = FastAPI()
 
 
 def get_db():
@@ -27,9 +29,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-app = FastAPI()
 
 
 @app.post("/add_batch")
