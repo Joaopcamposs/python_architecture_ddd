@@ -8,10 +8,20 @@ from src.allocation.entrypoints.schemas import CreateAllocation, CreateBatch
 from src.allocation.service_layer import unit_of_work, messagebus
 from src.allocation.service_layer.handlers import InvalidSku
 from src.allocation.service_layer.unit_of_work import engine
+from src.allocation import views
 
 app = FastAPI()
 orm.start_mappers()
 metadata.create_all(bind=engine)
+
+
+@app.get("/allocations/{orderid}")
+def allocations_view_endpoint(orderid: str):
+    uow = unit_of_work.SqlAlchemyUnitOfWork()
+    result = views.allocations(orderid, uow)
+    if not result:
+        return JSONResponse(status_code=404, content="Not Found")
+    return jsonify(result), 200
 
 
 @app.post("/add_batch")

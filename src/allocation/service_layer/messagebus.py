@@ -62,7 +62,14 @@ def handle_command(
 
 
 EVENT_HANDLERS: dict[type[events.Event], list[callable]] = {
-    events.Allocated: [handlers.publish_allocated_event],
+    events.Allocated: [
+        handlers.publish_allocated_event,
+        handlers.add_allocation_to_read_model,
+    ],
+    events.Deallocated: [
+        handlers.remove_allocation_from_read_model,
+        handlers.reallocate,
+    ],
     events.OutOfStock: [handlers.send_out_of_stock_notification],
 }
 
