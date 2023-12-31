@@ -29,7 +29,7 @@ e2e-tests: up
 	docker-compose run --rm --no-deps --entrypoint=pytest fastapi /tests/e2e
 
 logs:
-	docker-compose logs --tail=25 fastapi
+	docker-compose logs --tail=25 fastapi redis_pubsub
 
 format:
 	ruff format .

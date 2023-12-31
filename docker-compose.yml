@@ -2,20 +2,43 @@ version: "3.8"
 
 services:
 
+  redis_pubsub:
+    container_name: redis_pubsub
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: allocation-image
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - DB_HOST=postgres
+      - DB_PASSWORD=abc123
+      - REDIS_HOST=redis
+      - PYTHONDONTWRITEBYTECODE=1
+    volumes:
+      - ./src:/src/src
+      - ./tests:/tests/tests
+    entrypoint:
+      - python
+      - /src/allocation/entrypoints/redis_eventconsumer.py
+
   fastapi:
     container_name: fastapi
     build:
       context: .
       dockerfile: Dockerfile
     depends_on:
-      - postgres
+      - redis_pubsub
     environment:
-      - DATABASE_URI=postgresql://user:password@postgres:5432/allocation
+      - DB_HOST=postgres
+      - DB_PASSWORD=abc123
       - API_HOST=api
-      - PYTHONPATH=/app
+      - REDIS_HOST=redis
+      - PYTHONDONTWRITEBYTECODE=1
     volumes:
-      - ./src:/app/src
-      - ./tests:/tests
+      - ./src:/src/src
+      - ./tests:/tests/tests
     ports:
       - "8001:8000"
 
@@ -23,7 +46,13 @@ services:
     container_name: postgres
     image: postgres:16
     environment:
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=allocation
+      - POSTGRES_PASSWORD=abc123
     ports:
-      - "5432:5432"
+      - "54321:5432"
+
+  redis:
+    container_name: redis
+    image: redis:7.2.3-alpine
+    ports:
+      - "63791:6379"

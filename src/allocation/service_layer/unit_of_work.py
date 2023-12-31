@@ -1,9 +1,9 @@
 import abc
-from decouple import config
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
 from src.allocation.adapters import repository
+from src.allocation.config import get_postgres_uri
 
 
 class AbstractUnitOfWork(abc.ABC):
@@ -32,12 +32,11 @@ class AbstractUnitOfWork(abc.ABC):
         raise NotImplementedError
 
 
-DEFAULT_SESSION_FACTORY = sessionmaker(
-    bind=create_engine(
-        config("DATABASE_URI"),
-        isolation_level="SERIALIZABLE",  # usar 'REPEATABLE READ' quando postgres real
-    )
+engine = create_engine(
+    get_postgres_uri(),
+    isolation_level="REPEATABLE READ",  # usar 'REPEATABLE READ' quando postgres real, SERIALIZABLE para sqlite
 )
+DEFAULT_SESSION_FACTORY = sessionmaker(bind=engine)
 
 
 class SqlAlchemyUnitOfWork(AbstractUnitOfWork):

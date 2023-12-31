@@ -1,34 +1,17 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+
 from src.allocation.adapters.orm import metadata
-from src.allocation.config import create_default_database
 from src.allocation.domain import commands
 from src.allocation.adapters import orm
 from src.allocation.entrypoints.schemas import CreateAllocation, CreateBatch
 from src.allocation.service_layer import unit_of_work, messagebus
-from decouple import config
-
 from src.allocation.service_layer.handlers import InvalidSku
-
-# dependencias de banco de dados
-SQLALCHEMY_DATABASE_URL = config("DATABASE_URI")
-create_default_database(SQLALCHEMY_DATABASE_URL)
-orm.start_mappers()
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-metadata.create_all(bind=engine)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from src.allocation.service_layer.unit_of_work import engine
 
 app = FastAPI()
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+orm.start_mappers()
+metadata.create_all(bind=engine)
 
 
 @app.post("/add_batch")
