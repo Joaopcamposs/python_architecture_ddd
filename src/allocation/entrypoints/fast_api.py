@@ -33,23 +33,21 @@ def allocate_endpoint(
     new_allocate: CreateAllocation,
 ):
     try:
-        event = commands.Allocate(
+        cmd = commands.Allocate(
             new_allocate.orderid,
             new_allocate.sku,
             new_allocate.qty,
         )
-        results = messagebus.handle(event, unit_of_work.SqlAlchemyUnitOfWork())
-        batchref = results.pop(0)
+        bus.handle(cmd)
     except InvalidSku as e:
         raise HTTPException(detail=f"error: {e}", status_code=400)
 
-    return JSONResponse(status_code=201, content={"batchref": batchref})
+    return JSONResponse(status_code=202, content="Ok")
 
 
 @app.get("/allocations/{orderid}")
 def allocations_view_endpoint(orderid: str):
-    uow = unit_of_work.SqlAlchemyUnitOfWork()
-    result = views.allocations(orderid, uow)
+    result = views.allocations(orderid, bus.uow)
     if not result:
         return JSONResponse(status_code=404, content="Not Found")
     return JSONResponse(status_code=201, content=result)
