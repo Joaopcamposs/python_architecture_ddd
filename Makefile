@@ -2,6 +2,12 @@
 export COMPOSE_DOCKER_CLI_BUILD=1
 export DOCKER_BUILDKIT=1
 
+local-enviroment:
+	python -m venv venv_eda && venv_eda\Scripts\Activate.ps1
+
+install-dependencies:
+	python.exe -m pip install --upgrade pip && pip install -r requirements.txt
+
 all: down build up test
 
 build:

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from typing import Callable
 
-from src.allocation.adapters import email, redis_eventpublisher
+from src.allocation.adapters import notifications
 from src.allocation.domain import model, events, commands
 from src.allocation.domain.model import OrderLine
 from src.allocation.service_layer import unit_of_work
@@ -28,25 +29,21 @@ def add_batch(
 def allocate(
     cmd: commands.Allocate,
     uow: unit_of_work.AbstractUnitOfWork,
-) -> str:
+):
     line = OrderLine(cmd.orderid, cmd.sku, cmd.qty)
     with uow:
         product = uow.products.get(sku=line.sku)
         if product is None:
             raise InvalidSku(f"Invalid sku {line.sku}")
-        batchref = product.allocate(line)
+        product.allocate(line)
         uow.commit()
-        return batchref
 
 
 def reallocate(
     event: events.Deallocated,
     uow: unit_of_work.AbstractUnitOfWork,
 ):
-    with uow:
-        product = uow.products.get(sku=event.sku)
-        product.events.append(commands.Allocate(**asdict(event)))
-        uow.commit()
+    allocate(commands.Allocate(**asdict(event)), uow=uow)
 
 
 def change_batch_quantity(
@@ -61,9 +58,9 @@ def change_batch_quantity(
 
 def send_out_of_stock_notification(
     event: events.OutOfStock,
-    uow: unit_of_work.AbstractUnitOfWork,
+    notifications: notifications.AbstractNotifications,
 ):
-    email.send(
+    notifications.send(
         "stock@made.com",
         f"Out of stock for {event.sku}",
     )
@@ -71,9 +68,9 @@ def send_out_of_stock_notification(
 
 def publish_allocated_event(
     event: events.Allocated,
-    uow: unit_of_work.AbstractUnitOfWork,
+    publish: Callable,
 ):
-    redis_eventpublisher.publish("line_allocated", event)
+    publish("line_allocated", event)
 
 
 def add_allocation_to_read_model(
@@ -104,3 +101,22 @@ def remove_allocation_from_read_model(
             dict(orderid=event.orderid, sku=event.sku),
         )
         uow.commit()
+
+
+EVENT_HANDLERS: dict[type[events.Event], list[callable]] = {
+    events.Allocated: [
+        publish_allocated_event,
+        add_allocation_to_read_model,
+    ],
+    events.Deallocated: [
+        remove_allocation_from_read_model,
+        reallocate,
+    ],
+    events.OutOfStock: [send_out_of_stock_notification],
+}
+
+COMMAND_HANDLERS: dict[type[commands.Command], callable] = {
+    commands.Allocate: allocate,
+    commands.CreateBatch: add_batch,
+    commands.ChangeBatchQuantity: change_batch_quantity,
+}

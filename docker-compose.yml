@@ -11,10 +11,12 @@ services:
     depends_on:
       - postgres
       - redis
+      - mailhog
     environment:
       - DB_HOST=postgres
       - DB_PASSWORD=abc123
       - REDIS_HOST=redis
+      - EMAIL_HOST=mailhog
       - PYTHONDONTWRITEBYTECODE=1
     volumes:
       - ./src:/src/src
@@ -30,11 +32,13 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - redis_pubsub
+      - mailhog
     environment:
       - DB_HOST=postgres
       - DB_PASSWORD=abc123
       - API_HOST=api
       - REDIS_HOST=redis
+      - EMAIL_HOST=mailhog
       - PYTHONDONTWRITEBYTECODE=1
     volumes:
       - ./src:/src/src
@@ -56,3 +60,10 @@ services:
     image: redis:7.2.3-alpine
     ports:
       - "63791:6379"
+
+  mailhog:
+    container_name: mailhog
+    image: mailhog/mailhog
+    ports:
+      - "11025:1025"
+      - "18025:8025"
