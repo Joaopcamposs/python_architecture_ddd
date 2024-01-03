@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Optional, Set, NewType
 
@@ -44,10 +44,10 @@ class Product:
 
     def change_batch_quantity(self, ref: str, qty: int):
         batch = next(b for b in self.batches if b.reference == ref)
-        batch._purchased_quantity = qty
+        batch.purchased_quantity = qty
         while batch.available_quantity < 0:
             line = batch.deallocate_one()
-            self.events.append(commands.Allocate(line.orderid, line.sku, line.qty))
+            self.events.append(events.Deallocated(line.orderid, line.sku, line.qty))
 
 
 @dataclass(unsafe_hash=True)
@@ -57,13 +57,17 @@ class OrderLine:
     qty: Quantity
 
 
+@dataclass
 class Batch:
-    def __init__(self, ref: Reference, sku: Sku, qty: Quantity, eta: Optional[date]):
-        self.reference = ref
-        self.sku = sku
-        self.eta = eta
-        self._purchased_quantity = qty
-        self._allocations: Set[OrderLine] = set()
+    reference: str
+    sku: str
+    qty: int
+    eta: Optional[date]
+    purchased_quantity: int = field(init=False)
+    allocations: Set[OrderLine] = field(default_factory=set)
+
+    def __post_init__(self):
+        self.purchased_quantity = self.qty
 
     def __repr__(self):
         return f"<Batch {self.reference}>"
@@ -73,9 +77,6 @@ class Batch:
             return False
         return other.reference == self.reference
 
-    def __hash__(self):
-        return hash(self.reference)
-
     def __gt__(self, other):
         if self.eta is None:
             return False
@@ -83,24 +84,23 @@ class Batch:
             return True
         return self.eta > other.eta
 
+    def __hash__(self):
+        return hash(self.reference)
+
     def allocate(self, line: OrderLine):
         if self.can_allocate(line):
-            self._allocations.add(line)
+            self.allocations.add(line)
 
     def deallocate_one(self) -> OrderLine:
-        return self._allocations.pop()
+        return self.allocations.pop()
 
     @property
     def allocated_quantity(self) -> int:
-        return sum(line.qty for line in self._allocations)
+        return sum(line.qty for line in self.allocations)
 
     @property
     def available_quantity(self) -> int:
-        return self._purchased_quantity - self.allocated_quantity
-
-    @property
-    def orderids(self):
-        return {item.orderid for item in self._allocations}
+        return self.purchased_quantity - self.allocated_quantity
 
     def can_allocate(self, line: OrderLine) -> bool:
         return self.sku == line.sku and self.available_quantity >= line.qty

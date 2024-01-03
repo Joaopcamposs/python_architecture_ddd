@@ -1,15 +1,14 @@
 # pylint: disable=redefined-outer-name
+import asyncio
 import shutil
 import subprocess
-import time
-from pathlib import Path
-
+import async_timeout
 import pytest
+import pytest_asyncio
 import redis
-import requests
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, clear_mappers
-from tenacity import retry, stop_after_delay
+
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 
 from src.allocation.adapters.orm import metadata, start_mappers
 from src.allocation import config
@@ -17,54 +16,80 @@ from src.allocation import config
 pytest.register_assert_rewrite("tests.e2e.api_client")
 
 
-@pytest.fixture
-def in_memory_db():
-    engine = create_engine("sqlite:///:memory:")
-    metadata.create_all(engine)
-    return engine
+@pytest.fixture(scope="session")
+def event_loop():
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
+    yield loop
+    loop.close()
 
 
-@pytest.fixture
-def sqlite_session_factory(in_memory_db):
+@pytest_asyncio.fixture(scope="session", autouse=True)
+def mapper():
     start_mappers()
-    yield sessionmaker(bind=in_memory_db)
-    clear_mappers()
+
+
+@pytest_asyncio.fixture(scope="session")
+async def in_memory_sqlite_db():
+    return create_async_engine("sqlite+aiosqlite:///:memory:")
+
+
+@pytest_asyncio.fixture
+async def create_db(in_memory_sqlite_db):
+    async with in_memory_sqlite_db.begin() as conn:
+        await conn.run_sync(metadata.create_all)
+    yield
+    async with in_memory_sqlite_db.begin() as conn:
+        await conn.run_sync(metadata.drop_all)
 
 
 @pytest.fixture
-def sqlite_session(sqlite_session_factory):
+def sqlite_session_factory(in_memory_sqlite_db, create_db):
+    yield sessionmaker(
+        bind=in_memory_sqlite_db, expire_on_commit=False, class_=AsyncSession
+    )
+
+
+@pytest.fixture
+def session(sqlite_session_factory):
     return sqlite_session_factory()
 
 
-@retry(stop=stop_after_delay(10))
-def wait_for_postgres_to_come_up(engine):
-    return engine.connect()
+async def wait_for_postgres_to_come_up(engine):
+    async with async_timeout.timeout(10):
+        return engine.connect()
 
 
-@retry(stop=stop_after_delay(10))
-def wait_for_webapp_to_come_up():
-    return requests.get(config.get_api_url())
-
-
-@retry(stop=stop_after_delay(10))
-def wait_for_redis_to_come_up():
-    r = redis.Redis(**config.get_redis_host_and_port())
-    return r.ping()
+async def wait_for_redis_to_come_up():
+    redis_client = redis.Redis(**config.get_redis_host_and_port())
+    async with async_timeout.timeout(10):
+        return await redis_client.ping()
 
 
 @pytest.fixture(scope="session")
-def postgres_db():
-    engine = create_engine(config.get_postgres_uri())
-    wait_for_postgres_to_come_up(engine)
-    metadata.create_all(engine)
-    return engine
+def postgres_async_engine():
+    engine = create_async_engine(
+        config.get_postgres_uri(), isolation_level="SERIALIZABLE"
+    )
+    yield engine
+    engine.sync_engine.dispose()
+
+
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def postgres_create(postgres_async_engine):
+    await wait_for_postgres_to_come_up(postgres_async_engine)
+    async with postgres_async_engine.begin() as conn:
+        await conn.run_sync(metadata.create_all)
+    yield
+    async with postgres_async_engine.begin() as conn:
+        await conn.run_sync(metadata.drop_all)
 
 
 @pytest.fixture
-def postgres_session_factory(postgres_db):
-    start_mappers()
-    yield sessionmaker(bind=postgres_db)
-    clear_mappers()
+def postgres_session_factory(postgres_async_engine, postgres_create):
+    yield sessionmaker(
+        bind=postgres_async_engine, expire_on_commit=False, class_=AsyncSession
+    )
 
 
 @pytest.fixture
@@ -72,16 +97,9 @@ def postgres_session(postgres_session_factory):
     return postgres_session_factory()
 
 
-@pytest.fixture
-def restart_api():
-    (Path(__file__).parent / "../src/allocation/entrypoints/fast_api.py").touch()
-    time.sleep(0.5)
-    wait_for_webapp_to_come_up()
-
-
-@pytest.fixture
-def restart_redis_pubsub():
-    wait_for_redis_to_come_up()
+@pytest_asyncio.fixture(scope="session")
+async def restart_redis_pubsub():
+    await wait_for_redis_to_come_up()
     if not shutil.which("docker-compose"):
         print("skipping restart, assumes running in container")
         return

@@ -1,13 +1,16 @@
 import logging
 
-from sqlalchemy import MetaData, Table, Column, Integer, String, Date, ForeignKey, event
-from sqlalchemy.orm import mapper, relationship, clear_mappers
+from sqlalchemy import Table, Column, Integer, String, Date, ForeignKey, event
+from sqlalchemy.orm import relationship, registry
 
 from src.allocation.domain import model
 
 logger = logging.getLogger(__name__)
 
-metadata = MetaData()
+
+mapper_registry = registry()
+
+metadata = mapper_registry.metadata
 
 order_lines = Table(
     "order_lines",
@@ -31,7 +34,7 @@ batches = Table(
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("reference", String(255)),
     Column("sku", ForeignKey("products.sku")),
-    Column("_purchased_quantity", Integer, nullable=False),
+    Column("purchased_quantity", Integer, nullable=False),
     Column("eta", Date, nullable=True),
 )
 
@@ -54,22 +57,24 @@ allocations_view = Table(
 
 
 def start_mappers():
-    clear_mappers()
     logger.info("Starting mappers")
-    lines_mapper = mapper(model.OrderLine, order_lines)
-    batches_mapper = mapper(
+    lines_mapper = mapper_registry.map_imperatively(model.OrderLine, order_lines)
+    batches_mapper = mapper_registry.map_imperatively(
         model.Batch,
         batches,
         properties={
-            "_allocations": relationship(
+            "allocations": relationship(
                 lines_mapper,
                 secondary=allocations,
                 collection_class=set,
+                lazy="selectin",
             )
         },
     )
-    mapper(
-        model.Product, products, properties={"batches": relationship(batches_mapper)}
+    mapper_registry.map_imperatively(
+        model.Product,
+        products,
+        properties={"batches": relationship(batches_mapper, lazy="selectin")},
     )
 
 

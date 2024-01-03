@@ -1,11 +1,12 @@
 import inspect
-from typing import Callable
+from typing import Callable, Awaitable
 
 from src.allocation.adapters import redis_eventpublisher, orm
 from src.allocation.adapters.notifications import (
     AbstractNotifications,
     EmailNotifications,
 )
+from src.allocation.domain import events
 from src.allocation.service_layer import unit_of_work, messagebus, handlers
 
 
@@ -13,7 +14,7 @@ def bootstrap(
     start_orm: bool = True,
     uow: unit_of_work.AbstractUnitOfWork = unit_of_work.SqlAlchemyUnitOfWork(),
     notifications: AbstractNotifications = None,
-    publish: Callable = redis_eventpublisher.publish,
+    publish: Callable[[str, events.Event], Awaitable] = redis_eventpublisher.publish,
 ) -> messagebus.MessageBus:
     if notifications is None:
         notifications = EmailNotifications()

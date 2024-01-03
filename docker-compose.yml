@@ -9,30 +9,39 @@ services:
       dockerfile: Dockerfile
     image: allocation-image
     depends_on:
-      - postgres
-      - redis
-      - mailhog
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mailhog:
+        condition: service_started
     environment:
       - DB_HOST=postgres
       - DB_PASSWORD=abc123
       - REDIS_HOST=redis
       - EMAIL_HOST=mailhog
       - PYTHONDONTWRITEBYTECODE=1
+    working_dir: /
     volumes:
-      - ./src:/src/src
-      - ./tests:/tests/tests
+      - ./src:/src
+      - ./tests:/tests
     entrypoint:
       - python
-      - /src/allocation/entrypoints/redis_eventconsumer.py
+      - src/allocation/entrypoints/redis_eventconsumer.py
 
   fastapi:
     container_name: fastapi
     build:
       context: .
       dockerfile: Dockerfile
+    image: allocation-image
     depends_on:
-      - redis_pubsub
-      - mailhog
+      redis_pubsub:
+        condition: service_started
+      mailhog:
+        condition: service_started
+      postgres:
+        condition: service_healthy
     environment:
       - DB_HOST=postgres
       - DB_PASSWORD=abc123
@@ -40,9 +49,16 @@ services:
       - REDIS_HOST=redis
       - EMAIL_HOST=mailhog
       - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
     volumes:
-      - ./src:/src/src
-      - ./tests:/tests/tests
+      - ./src:/src
+      - ./tests:/tests
+    entrypoint:
+      - uvicorn
+      - src.allocation.entrypoints.main:app
+      - --reload
+      - --host=0.0.0.0
+      - --port=8000
     ports:
       - "8001:8000"
 
@@ -54,6 +70,13 @@ services:
       - POSTGRES_PASSWORD=abc123
     ports:
       - "54321:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     container_name: redis

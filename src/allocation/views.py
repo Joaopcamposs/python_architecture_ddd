@@ -1,12 +1,17 @@
+from sqlalchemy import text
+
 from src.allocation.service_layer import unit_of_work
 
 
-def allocations(orderid: str, uow: unit_of_work.AbstractUnitOfWork):
-    with uow:
-        results = uow.session.execute(
-            """
-            SELECT sku, batchref FROM allocations_view WHERE orderid = :orderid
-            """,
-            dict(orderid=orderid),
+async def allocations(orderid: str, uow: unit_of_work.SqlAlchemyUnitOfWork):
+    async with uow:
+        results = await uow.session.execute(
+            text(
+                """
+                SELECT sku, batchref FROM allocations_view WHERE orderid = :orderid
+                """
+            ),
+            {"orderid": orderid},
         )
-        return [dict(r) for r in results]
+
+    return results.mappings().all()

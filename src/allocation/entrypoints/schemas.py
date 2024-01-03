@@ -14,4 +14,4 @@ class CreateBatch(BaseModel):
     ref: str
     sku: str
     qty: int
-    eta: Optional[date] = None
+    eta: Optional[date]

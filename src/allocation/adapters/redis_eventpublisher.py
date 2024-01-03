@@ -13,6 +13,6 @@ logger = logging.getLogger(__name__)
 r = redis.Redis(**config.get_redis_host_and_port())
 
 
-def publish(channel, event: events.Event):  # (1)
-    logging.debug("publishing: channel=%s, event=%s", channel, event)
-    r.publish(channel, json.dumps(asdict(event)))
+async def publish(channel: str, event: events.Event):
+    logging.info("publishing: channel=%s, event=%s", channel, event)
+    await r.publish(channel, json.dumps(asdict(event)))

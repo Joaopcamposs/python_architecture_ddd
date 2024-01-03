@@ -10,13 +10,13 @@ RUN python -m pip install --upgrade pip
 
 RUN pip install -r /tmp/requirements.txt
 
-RUN mkdir -p /src
+WORKDIR /redis-pubsub
 
-COPY src/ /src/
-RUN pip install -e /src
-COPY tests/ /tests/
+COPY . /redis-pubsub
 
-WORKDIR /
+RUN pip install -e /redis-pubsub/src
+
+CMD python src/allocation/entrypoints/redis_eventconsumer.py
 
 #EXPOSE 8001
 

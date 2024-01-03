@@ -6,7 +6,7 @@ def get_postgres_uri():
     port = 54321 if host == "localhost" else 5432
     password = os.environ.get("DB_PASSWORD", "abc123")
     user, db_name = "allocation", "allocation"
-    return f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
+    return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db_name}"
 
 
 def get_api_url():
@@ -18,7 +18,7 @@ def get_api_url():
 def get_redis_host_and_port():
     host = os.environ.get("REDIS_HOST", "localhost")
     port = 63791 if host == "localhost" else 6379
-    return dict(host=host, port=port)
+    return {"host": host, "port": port}
 
 
 def get_email_host_and_port():
@@ -29,15 +29,15 @@ def get_email_host_and_port():
 
 
 # funcao para criar o banco de dados padrao
-def create_default_database(database_url: str):
-    from sqlalchemy import create_engine
-
-    try:
-        database_url = database_url.replace("/allocation", "")
-        engine = create_engine(database_url, isolation_level="AUTOCOMMIT")
-        conn = engine.connect()
-
-        conn.execute("CREATE DATABASE allocation")
-        conn.close()
-    except Exception as err:
-        print(err)
+# def create_default_database(database_url: str):
+#     from sqlalchemy import create_engine
+#
+#     try:
+#         database_url = database_url.replace("/allocation", "")
+#         engine = create_engine(database_url, isolation_level="AUTOCOMMIT")
+#         conn = engine.connect()
+#
+#         conn.execute("CREATE DATABASE allocation")
+#         conn.close()
+#     except Exception as err:
+#         print(err)

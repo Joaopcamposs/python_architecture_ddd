@@ -1,5 +1,7 @@
 import abc
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from src.allocation.adapters import orm
 from src.allocation.domain import model
 
@@ -8,55 +10,59 @@ class AbstractRepository(abc.ABC):
     def __init__(self):
         self.seen: set[model.Product] = set()
 
-    def add(self, product: model.Product):
-        self._add(product)
+    async def add(self, product: model.Product):
+        await self._add(product)
         self.seen.add(product)
 
-    def get(self, sku) -> model.Product:
-        product = self._get(sku)
+    async def get(self, sku) -> model.Product:
+        product = await self._get(sku)
         if product:
             self.seen.add(product)
         return product
 
-    def get_by_batchref(self, batchref) -> model.Product:
-        product = self._get_by_batchref(batchref)
+    async def get_by_batchref(self, batchref) -> model.Product:
+        product = await self._get_by_batchref(batchref)
         if product:
             self.seen.add(product)
         return product
 
     @abc.abstractmethod
-    def _add(self, product: model.Product):
+    async def _add(self, product: model.Product):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get(self, sku) -> model.Product:
+    async def _get(self, sku) -> model.Product:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _get_by_batchref(self, batchref) -> model.Product:
+    async def _get_by_batchref(self, batchref) -> model.Product:
         raise NotImplementedError
 
 
 class SqlAlchemyRepository(AbstractRepository):
-    def __init__(self, session):
+    def __init__(self, session: AsyncSession):
         super().__init__()
         self.session = session
 
-    def _add(self, product):
+    async def _add(self, product: model.Product):
         self.session.add(product)
 
-    def _get(self, sku):
+    async def _get(self, sku: str) -> model.Product:
         return (
-            self.session.query(model.Product)
-            .filter_by(sku=sku)
-            .with_for_update()  # controle de simultaneidade pessimista: SELECT FOR UPDATE
-            .first()
+            (await self.session.execute(select(model.Product).filter_by(sku=sku)))
+            .scalars()
+            .one_or_none()
         )
 
-    def _get_by_batchref(self, batchref):
+    async def _get_by_batchref(self, batchref):
         return (
-            self.session.query(model.Product)
-            .join(model.Batch)
-            .filter(orm.batches.c.reference == batchref)
-            .first()
+            (
+                await self.session.execute(
+                    select(model.Product)
+                    .join(model.Batch)
+                    .filter(orm.batches.c.reference == batchref)
+                )
+            )
+            .scalars()
+            .one_or_none()
         )
