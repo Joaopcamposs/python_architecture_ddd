@@ -1,5 +1,3 @@
-from dataclasses import asdict
-
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
@@ -9,8 +7,8 @@ from src.allocation.entrypoints.schemas import CreateAllocation, CreateBatch
 from src.allocation.service_layer.handlers import InvalidSku
 from src.allocation import bootstrap, views
 
-app = FastAPI()
 bus = bootstrap.bootstrap()
+app = FastAPI()
 
 
 @app.post("/add_batch")

@@ -1,6 +1,6 @@
 import json
-import redis
 
+import redis.asyncio as redis
 from src.allocation import config
 
 r = redis.Redis(**config.get_redis_host_and_port())
@@ -8,11 +8,11 @@ r = redis.Redis(**config.get_redis_host_and_port())
 
 async def subscribe_to(channel):
     pubsub = r.pubsub()
-    pubsub.subscribe(channel)
-    confirmation = pubsub.get_message(timeout=3)
+    await pubsub.subscribe(channel)
+    confirmation = await pubsub.get_message(timeout=3)
     assert confirmation["type"] == "subscribe"
     return pubsub
 
 
-def publish_message(channel, message):
-    r.publish(channel, json.dumps(message))
+async def publish_message(channel, message):
+    await r.publish(channel, json.dumps(message))

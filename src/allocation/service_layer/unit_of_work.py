@@ -12,7 +12,7 @@ from src.allocation import config
 class AbstractUnitOfWork(abc.ABC):
     products: repository.AbstractRepository
 
-    async def __aenter__(self) -> "AbstractUnitOfWork":
+    async def __aenter__(self) -> AbstractUnitOfWork:
         return self
 
     async def __aexit__(self, *args):

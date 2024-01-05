@@ -2,11 +2,9 @@ import json
 import logging
 from dataclasses import asdict
 
-import redis
-
+import redis.asyncio as redis
 from src.allocation import config
 from src.allocation.domain import events
-
 
 logger = logging.getLogger(__name__)
 

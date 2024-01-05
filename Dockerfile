@@ -17,7 +17,3 @@ RUN pip install -e /src
 COPY tests/ /tests/
 
 WORKDIR /
-
-#EXPOSE 8001
-
-#CMD uvicorn --host 0.0.0.0 --port 8000 src.allocation.entrypoints.fast_api:app --workers 1 --log-level debug --forwarded-allow-ips="*" --proxy-headers

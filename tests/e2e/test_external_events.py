@@ -5,7 +5,7 @@ import async_timeout
 import pytest
 
 from tests.e2e import api_client, redis_client
-from tests.e2e.test_api import random_orderid, random_sku, random_batchref
+from tests.random_refs import random_batchref, random_orderid, random_sku
 
 
 @pytest.mark.asyncio
@@ -23,7 +23,7 @@ async def test_change_batch_quantity_leading_to_reallocation():
     subscription = await redis_client.subscribe_to("line_allocated")
 
     # change quantity on allocated batch so it's less than our order
-    redis_client.publish_message(
+    await redis_client.publish_message(
         "change_batch_quantity",
         {"batchref": earlier_batch, "qty": 5},
     )
@@ -33,7 +33,7 @@ async def test_change_batch_quantity_leading_to_reallocation():
 
     async with async_timeout.timeout(10):
         await asyncio.sleep(1)
-        message = subscription.get_message(timeout=1)
+        message = await subscription.get_message(timeout=1)
         if message:
             messages.append(message)
             print(messages)

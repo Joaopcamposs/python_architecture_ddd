@@ -5,7 +5,7 @@ from sqlalchemy import text
 
 from src.allocation.domain import model
 from src.allocation.service_layer import unit_of_work
-from tests.e2e.test_api import random_sku, random_batchref, random_orderid
+from tests.random_refs import random_batchref, random_orderid, random_sku
 
 
 async def insert_batch(session, ref, sku, qty, eta, product_version=1):

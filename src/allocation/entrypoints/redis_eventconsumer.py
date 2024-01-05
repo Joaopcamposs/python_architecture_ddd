@@ -5,7 +5,7 @@ import json
 import logging
 import redis.asyncio as redis
 
-# Adicione o diretório raiz ao caminho do Python
+# to resolve the error: ModuleNotFoundError: No module named 'src'
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 )
